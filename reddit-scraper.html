@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Trends Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #fff5f0 0%, #ffe5e5 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        button {
+            background: #ff4500;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #ff5722;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card h2 {
+            font-size: 1.75rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-subtitle {
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 1.5rem;
+        }
+        
+        .trend-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .trend-number {
+            color: #ff4500;
+            font-weight: bold;
+            width: 2rem;
+        }
+        
+        .trend-content {
+            flex: 1;
+            background: #fff5f0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .trend-word {
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #333;
+        }
+        
+        .trend-count {
+            color: #ff4500;
+            font-weight: 500;
+        }
+        
+        .post-item {
+            border-left: 4px solid #ff4500;
+            padding: 1rem 0 1rem 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .post-item a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .post-item a:hover {
+            color: #ff4500;
+        }
+        
+        .post-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .post-score {
+            color: #ff4500;
+            font-weight: 600;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 Reddit Trends Analyzer</h1>
+            <p>Analyzing r/news, r/wallstreetbets, and r/stocks</p>
+        </div>
+        
+        <div class="button-container">
+            <button id="analyzeBtn" onclick="analyzeReddit()">🔍 Analyze Trends</button>
+        </div>
+        
+        <div id="error" class="error hidden"></div>
+        
+        <div id="results" class="hidden">
+            <div class="card">
+                <h2>📊 Top 20 Trending Topics</h2>
+                <div id="postCount" class="card-subtitle"></div>
+                <div id="trendingTopics"></div>
+            </div>
+            
+            <div class="card">
+                <h2>🔥 Top 5 Hottest Posts</h2>
+                <div id="hottestPosts"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUBREDDITS = ['news', 'wallstreetbets', 'stocks'];
+        const STOP_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'about', 'from', 'by', 'as', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'their', 'them', 'we', 'our', 'you', 'your', 'he', 'she', 'his', 'her', 'i', 'my', 'me']);
+
+        function extractKeywords(text) {
+            return text
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(word => word.length > 3 && !STOP_WORDS.has(word));
+        }
+
+        async function fetchSubreddit(subreddit) {
+            const corsProxy = 'https://corsproxy.io/?';
+            const response = await fetch(`${corsProxy}https://www.reddit.com/r/${subreddit}/hot.json?limit=100`, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            const data = await response.json();
+            return data.data.children.map(child => child.data);
+        }
+
+        async function analyzeReddit() {
+            const btn = document.getElementById('analyzeBtn');
+            const errorDiv = document.getElementById('error');
+            const resultsDiv = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.textContent = 'Scraping Reddit...';
+            errorDiv.classList.add('hidden');
+            resultsDiv.classList.add('hidden');
+            
+            try {
+                const allPosts = [];
+                const wordFreq = {};
+
+                for (const sub of SUBREDDITS) {
+                    const posts = await fetchSubreddit(sub);
+                    allPosts.push(...posts);
+
+                    posts.forEach(post => {
+                        const keywords = extractKeywords(post.title);
+                        keywords.forEach(word => {
+                            wordFreq[word] = (wordFreq[word] || 0) + 1;
+                        });
+                    });
+
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                const topWords = Object.entries(wordFreq)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20);
+
+                const topPosts = allPosts
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 5);
+
+                displayResults(topWords, topPosts, allPosts.length);
+                
+            } catch (err) {
+                errorDiv.textContent = 'Failed to fetch Reddit data. Please try again.';
+                errorDiv.classList.remove('hidden');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Analyze Trends';
+            }
+        }
+
+        function displayResults(topWords, topPosts, totalPosts) {
+            document.getElementById('postCount').textContent = `Scraped ${totalPosts} posts`;
+            
+            const trendingDiv = document.getElementById('trendingTopics');
+            trendingDiv.innerHTML = topWords.map(([word, count], i) => `
+                <div class="trend-item">
+                    <span class="trend-number">${i + 1}.</span>
+                    <div class="trend-content">
+                        <span class="trend-word">${word}</span>
+                        <span class="trend-count">${count} mentions</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            const postsDiv = document.getElementById('hottestPosts');
+            postsDiv.innerHTML = topPosts.map((post, i) => `
+                <div class="post-item">
+                    <span class="trend-number">${i + 1}.</span>
+                    <a href="https://reddit.com${post.permalink}" target="_blank">${post.title}</a>
+                    <div class="post-meta">
+                        <span class="post-score">↑ ${post.score.toLocaleString()} upvotes</span>
+                        <span>r/${post.subreddit}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('results').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
