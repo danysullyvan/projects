@@ -1,2 +1,2 @@
 # projects
-personal projects -- python
+personal projects -- python and html
