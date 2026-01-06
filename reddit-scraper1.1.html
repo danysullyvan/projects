@@ -212,10 +212,9 @@
         }
 
         async function fetchSubreddit(subreddit) {
-            const corsProxy = 'https://corsproxy.io/?';
-            const response = await fetch(`${corsProxy}https://www.reddit.com/r/${subreddit}/hot.json?limit=100`, {
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-            });
+            const corsProxy = 'https://api.allorigins.win/raw?url=';
+            const url = encodeURIComponent(`https://www.reddit.com/r/${subreddit}/hot.json?limit=100`);
+            const response = await fetch(`${corsProxy}${url}`);
             const data = await response.json();
             return data.data.children.map(child => child.data);
         }
